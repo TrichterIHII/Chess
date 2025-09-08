@@ -245,11 +245,11 @@ board = Chessboard('board', {
   draggable: true,
   position: 'start',
   onDrop: onDrop,
-  pieceTheme: 'https://upload.wikimedia.org/wikipedia/commons/{piece}.png'
+  pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png'
+});
+startNew();
 });
 
-  startNew();
-});
 
 window.addEventListener("resize",()=>{board.resize();});
 </script>
