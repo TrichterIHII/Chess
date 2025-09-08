@@ -2,9 +2,8 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Schach gegen Bot</title>
+<title>Schach ohne Bilder</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
 <style>
   body {
     margin: 0;
@@ -16,13 +15,25 @@
     align-items: center;
   }
   #board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
     width: 95vw;
     max-width: 400px;
-    height: 95vw;
-    max-height: 400px;
+    aspect-ratio: 1 / 1;
     margin: 20px 0;
-    box-shadow: 0 0 20px #0af;
+    border: 2px solid #0af;
   }
+  .square {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    user-select: none;
+    cursor: pointer;
+  }
+  .light { background: #9cf; color: #000; }
+  .dark { background: #024; color: #fff; }
   #controls {
     width: 95vw;
     max-width: 400px;
@@ -94,155 +105,112 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stockfish/stockfish.js"></script>
 <script>
-let game = new Chess();
-let board = null;
+const game = new Chess();
+const boardEl = document.getElementById("board");
+const lastMoveEl = document.getElementById("lastMove");
+const pgnEl = document.getElementById("pgn");
+const sideSelect = document.getElementById("side");
+const strengthSelect = document.getElementById("strength");
+const stockfish = Stockfish();
 
-const lastMoveEl = document.getElementById('lastMove');
-const pgnEl = document.getElementById('pgn');
-const newBtn = document.getElementById('newBtn');
-const undoBtn = document.getElementById('undoBtn');
-const sideSelect = document.getElementById('side');
-const strengthSelect = document.getElementById('strength');
-
-let stockfish = Stockfish();
-stockfish.onmessage = function(event){
-  const line = (typeof event==="string")?event:event.data;
-  if(line.startsWith("bestmove")){
-    const parts=line.split(" ");
-    if(parts[1] && parts[1]!=="(none)"){
-      const move = game.move({from: parts[1].substr(0,2), to: parts[1].substr(2,2), promotion:'q'});
-      board.position(game.fen());
-      updateUI(move);
-    }
-  }
+const pieceSymbols = {
+  p: "♙", n: "♘", b: "♗", r: "♖", q: "♕", k: "♔",
+  P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚"
 };
 
-function updateUI(move){
-  lastMoveEl.textContent = move && move.san ? move.san : "-";
+function renderBoard() {
+  boardEl.innerHTML = "";
+  const board = game.board();
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const sq = document.createElement("div");
+      sq.classList.add("square");
+      if ((r + c) % 2 === 0) sq.classList.add("light");
+      else sq.classList.add("dark");
+      const piece = board[r][c];
+      if (piece) {
+        const sym = piece.color === "w" ? pieceSymbols[piece.type] : pieceSymbols[piece.type.toUpperCase()];
+        sq.textContent = sym;
+      }
+      const squareName = "abcdefgh"[c] + (8 - r);
+      sq.dataset.square = squareName;
+      sq.onclick = () => onSquareClick(squareName);
+      boardEl.appendChild(sq);
+    }
+  }
   pgnEl.textContent = game.pgn() || "-";
 }
 
-function onDrop(source, target){
-  const move = game.move({from: source, to: target, promotion:'q'});
-  if(!move) return 'snapback';
-  updateUI(move);
-  setTimeout(maybeBotMove, 200);
-}
-
-function startNew(){
-  game.reset();
-  board.start();
-  updateUI();
-  if(sideSelect.value==="black") setTimeout(maybeBotMove,300);
-}
-
-function undoMove(){
-  game.undo();
-  game.undo();
-  board.position(game.fen());
-  updateUI();
-}
-
-const pieceValues={p:100,n:320,b:330,r:500,q:900,k:20000};
-function evaluateBoard(g){
-  if(g.in_checkmate()) return g.turn()==="w"?-999999:999999;
-  if(g.in_draw()||g.in_stalemate()||g.in_threefold_repetition()) return 0;
-  let score=0;
-  for(const row of g.board()){
-    for(const piece of row){
-      if(piece){
-        const val=pieceValues[piece.type]||0;
-        score+=piece.color==="w"?val:-val;
-      }
-    }
-  }
-  return score;
-}
-
-function minimax(g, depth, alpha, beta, isMax){
-  if(depth===0||g.game_over()) return evaluateBoard(g);
-  const moves = g.moves();
-  if(isMax){
-    let maxEval=-Infinity;
-    for(const m of moves){
-      g.move(m);
-      const evalScore=minimax(g,depth-1,alpha,beta,false);
-      g.undo();
-      if(evalScore>maxEval) maxEval=evalScore;
-      if(evalScore>alpha) alpha=evalScore;
-      if(beta<=alpha) break;
-    }
-    return maxEval;
-  }else{
-    let minEval=Infinity;
-    for(const m of moves){
-      g.move(m);
-      const evalScore=minimax(g,depth-1,alpha,beta,true);
-      g.undo();
-      if(evalScore<minEval) minEval=evalScore;
-      if(evalScore<beta) beta=evalScore;
-      if(beta<=alpha) break;
-    }
-    return minEval;
-  }
-}
-
-function computeBestMove(depth){
-  const g = new Chess(game.fen());
-  const moves = g.moves();
-  let bestMove=null;
-  let bestEval = game.turn()==="w"?-Infinity:Infinity;
-  const isWhiteTurn=game.turn()==="w";
-  for(const m of moves){
-    g.move(m);
-    const evalScore=minimax(g,depth-1,-Infinity,Infinity,!isWhiteTurn);
-    g.undo();
-    if(isWhiteTurn){
-      if(evalScore>bestEval){bestEval=evalScore;bestMove=m;}
-    }else{
-      if(evalScore<bestEval){bestEval=evalScore;bestMove=m;}
-    }
-  }
-  return bestMove;
-}
-
-function maybeBotMove(){
-  if(game.game_over()) return;
-  const playerSide = sideSelect.value;
-  const botColor = playerSide==="white"?"b":"w";
-  if(game.turn()!==botColor) return;
-
-  const strength=parseInt(strengthSelect.value,10);
-  if(strength<10){
-    const depth=Math.max(1,strength);
-    const best=computeBestMove(depth);
-    if(best){
-      const move = game.move(best);
-      board.position(game.fen());
+let selectedSquare = null;
+function onSquareClick(square) {
+  if (selectedSquare) {
+    const move = game.move({ from: selectedSquare, to: square, promotion: "q" });
+    if (move) {
       updateUI(move);
+      selectedSquare = null;
+      setTimeout(maybeBotMove, 200);
+    } else {
+      selectedSquare = null;
     }
-  }else{
-    stockfish.postMessage("position fen "+game.fen());
+  } else {
+    selectedSquare = square;
+  }
+  renderBoard();
+}
+
+function updateUI(move) {
+  lastMoveEl.textContent = move ? move.san : "-";
+}
+
+function startNew() {
+  game.reset();
+  updateUI(null);
+  renderBoard();
+  if (sideSelect.value === "black") setTimeout(maybeBotMove, 300);
+}
+
+function undoMove() {
+  game.undo(); game.undo();
+  renderBoard();
+  updateUI(null);
+}
+
+function maybeBotMove() {
+  if (game.game_over()) return;
+  const playerSide = sideSelect.value;
+  const botColor = playerSide === "white" ? "b" : "w";
+  if (game.turn() !== botColor) return;
+  const strength = parseInt(strengthSelect.value, 10);
+  if (strength < 10) {
+    const moves = game.moves();
+    const move = moves[Math.floor(Math.random() * moves.length)];
+    game.move(move);
+    updateUI({ san: move });
+    renderBoard();
+  } else {
+    stockfish.postMessage("position fen " + game.fen());
     stockfish.postMessage("go depth 12");
   }
 }
 
-window.addEventListener("load",()=>{
-  board = Chessboard('board', {
-    draggable: true,
-    position: 'start',
-    onDrop: onDrop,
-    pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
-  });
-  startNew();
-});
+stockfish.onmessage = function(event) {
+  const line = (typeof event === "string") ? event : event.data;
+  if (line.startsWith("bestmove")) {
+    const parts = line.split(" ");
+    if (parts[1] && parts[1] !== "(none)") {
+      const move = game.move({ from: parts[1].substr(0,2), to: parts[1].substr(2,2), promotion: "q" });
+      updateUI(move);
+      renderBoard();
+    }
+  }
+};
 
-window.addEventListener("resize",()=>{board.resize();});
-newBtn.onclick = startNew;
-undoBtn.onclick = undoMove;
+document.getElementById("newBtn").onclick = startNew;
+document.getElementById("undoBtn").onclick = undoMove;
+
+startNew();
 </script>
 </body>
 </html>
