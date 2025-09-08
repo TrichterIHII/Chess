@@ -241,7 +241,13 @@ function maybeBotMove(){
 }
 
 window.addEventListener("load",()=>{
-  board=Chessboard('board',{draggable:true,position:'start',onDrop:onDrop});
+board = Chessboard('board', {
+  draggable: true,
+  position: 'start',
+  onDrop: onDrop,
+  pieceTheme: 'https://upload.wikimedia.org/wikipedia/commons/{piece}.png'
+});
+
   startNew();
 });
 
