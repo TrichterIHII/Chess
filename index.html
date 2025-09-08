@@ -56,8 +56,18 @@
 </head>
 <body>
 
-<div id="board"></div>
-
+<div id="board" style="width:95vw; max-width:400px; height:95vw; max-height:400px; margin:auto;"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+<script>
+  const board = Chessboard('board', {
+    draggable: true,
+    position: 'start',
+    pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png'
+  });
+  window.addEventListener('resize',()=>{board.resize();});
+  
+</script>
 <div id="controls">
   <label>Seite:
     <select id="side">
