@@ -14,16 +14,18 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 100vh;
   }
   #board {
-    width: 400px;
-    height: 400px;
-    margin: 20px auto;
+    width: 95vw;
+    max-width: 400px;
+    height: 95vw;
+    max-height: 400px;
+    margin: 20px 0;
     box-shadow: 0 0 20px #0af;
   }
   #controls {
-    width: 400px;
+    width: 95vw;
+    max-width: 400px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -56,18 +58,8 @@
 </head>
 <body>
 
-<div id="board" style="width:95vw; max-width:400px; height:95vw; max-height:400px; margin:auto;"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-<script>
-  const board = Chessboard('board', {
-    draggable: true,
-    position: 'start',
-    pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png'
-  });
-  window.addEventListener('resize',()=>{board.resize();});
-  
-</script>
+<div id="board"></div>
+
 <div id="controls">
   <label>Seite:
     <select id="side">
@@ -121,11 +113,7 @@ stockfish.onmessage = function(event){
   if(line.startsWith("bestmove")){
     const parts=line.split(" ");
     if(parts[1] && parts[1]!=="(none)"){
-      const move = game.move({
-        from: parts[1].substr(0,2),
-        to: parts[1].substr(2,2),
-        promotion:'q'
-      });
+      const move = game.move({from: parts[1].substr(0,2), to: parts[1].substr(2,2), promotion:'q'});
       board.position(game.fen());
       updateUI(move);
     }
@@ -183,7 +171,7 @@ function minimax(g, depth, alpha, beta, isMax){
       g.move(m);
       const evalScore=minimax(g,depth-1,alpha,beta,false);
       g.undo();
-      if(evalScore>maxEval) maxEval=maxEval>evalScore?maxEval:evalScore;
+      if(evalScore>maxEval) maxEval=evalScore;
       if(evalScore>alpha) alpha=evalScore;
       if(beta<=alpha) break;
     }
@@ -194,7 +182,7 @@ function minimax(g, depth, alpha, beta, isMax){
       g.move(m);
       const evalScore=minimax(g,depth-1,alpha,beta,true);
       g.undo();
-      if(evalScore<minEval) minEval=minEval<evalScore?minEval:evalScore;
+      if(evalScore<minEval) minEval=evalScore;
       if(evalScore<beta) beta=evalScore;
       if(beta<=alpha) break;
     }
@@ -251,6 +239,10 @@ window.addEventListener("load",()=>{
   });
   startNew();
 });
+
+window.addEventListener("resize",()=>{board.resize();});
+newBtn.onclick = startNew;
+undoBtn.onclick = undoMove;
 </script>
 </body>
 </html>
