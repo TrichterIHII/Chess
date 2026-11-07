@@ -38,6 +38,7 @@ Element chessboard() {
             if (x == 0) cells.push_back(text(std::to_string(8 - y) + " | "));
 
             if (x % 2 == y % 2) {
+                cells.push_back(
                     text((std::string){piece, ' '}) | center | inverted
                 );
             } else {
